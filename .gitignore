@@ -1,6 +1,8 @@
 config.ini
-.mp3
+*.mp3
 geckodriver.log
+
+.idea
 
 ### Python template
 # Byte-compiled / optimized / DLL files
