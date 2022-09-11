@@ -34,7 +34,8 @@ parser.add_argument('-d', '--delete-after-download', action="store_true", requir
 parser.add_argument('-u', '--user', type=str, default="", required=False, help='Username')
 parser.add_argument('-p', '--password', type=str, default="", required=False, help='Password')
 parser.add_argument('-c', '--config', type=str, default='', required=False, help='path to config.ini file')
-parser.add_argument('--geckodriver-path', type=str, default='geckodriver', required=False, help='path to firefox driver executable')
+parser.add_argument('--geckodriver-path', type=str, default='geckodriver', required=False, help='path to geckodriver executable')
+parser.add_argument('--firefox-path', type=str, default='firefox', required=False, help='path to firefox executable')
 parser.add_argument('--debug', action='store_true', default = False, required=False, help='Debug mode')
 parser.add_argument('--dir', type=str, default=".", required=False, help='Download dir')
 
@@ -65,7 +66,7 @@ if args.dir != '':
     ff_prof.set_preference( "browser.download.dir", args.dir)
 
 # create a new Firefox session
-driver = webdriver.Firefox(options=ff_prof, executable_path=args.geckodriver_path)
+driver = webdriver.Firefox(options=ff_prof, executable_path=args.geckodriver_path, firefox_binary=args.firefox_path)
 driver.implicitly_wait(10)
 
 # navigate to the application home page
