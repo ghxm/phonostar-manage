@@ -5,6 +5,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.service import Service
 import re
 import atexit
 import configparser
@@ -54,19 +55,24 @@ if args.config != '':
     args.dir = config.get('download', 'dir')
 
 
-ff_prof = Options()
+ff_ops = Options()
 
-ff_prof.set_preference( "browser.download.manager.showWhenStarting", False )
-ff_prof.set_preference( "browser.download.folderList", 2 )
-ff_prof.set_preference( "browser.download.useDownloadDir", True )
+ff_ops.binary_location = args.firefox_path
+
+ff_ops.set_preference("browser.download.manager.showWhenStarting", False)
+ff_ops.set_preference("browser.download.folderList", 2)
+ff_ops.set_preference("browser.download.useDownloadDir", True)
+
 if not args.debug:
-    ff_prof.headless = True
+    ff_ops.headless = True
 
 if args.dir != '':
-    ff_prof.set_preference( "browser.download.dir", args.dir)
+    ff_ops.set_preference("browser.download.dir", args.dir)
+
+ff_service = Service(args.geckodriver_path)
 
 # create a new Firefox session
-driver = webdriver.Firefox(options=ff_prof, executable_path=args.geckodriver_path, firefox_binary=args.firefox_path)
+driver = webdriver.Firefox(options=ff_ops, service=ff_service)
 driver.implicitly_wait(10)
 
 # navigate to the application home page
