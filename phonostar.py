@@ -81,11 +81,11 @@ assert "phonostar" in driver.title
 
 def delete_recording(recording):
 
-    delete_success = False
+    delete_successful = False
 
     i = 1
 
-    while not delete_success and i < 3:
+    while not delete_successful and i < 3:
 
         i = i + 1
 
@@ -102,10 +102,10 @@ def delete_recording(recording):
             # click on the delete button
             delete_button.click()
 
-            delete_success = True
+            delete_successful = True
         except:
             accept_cookie_notice()
-            delete_success = False
+            delete_successful = False
 
 
 
@@ -175,76 +175,105 @@ accept_cookie_notice()
 
 login_successful = False
 
-while not login_successful:
+login_trials = 0
 
-    # get the username textbox
-    login_field = driver.find_element(By.ID, "user_email")
-    login_field.clear()
+while not login_successful and login_trials <= 3:
 
-    # enter username
-    if args.user == "":
-        login_field.send_keys(input("Username: "))
-    else:
-        login_field.send_keys(args.user)
-
-    # get the password textbox
-    password_field = driver.find_element(By.ID, "user_password")
-    password_field.clear()
-
-    # enter password
-    if args.password == "":
-        password_field.send_keys(input("Password: "))
-    else:
-        password_field.send_keys(args.password)
-
-    # login
-    password_field.send_keys(Keys.RETURN)
-
-    # check if login was successful
     try:
-        WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.CLASS_NAME, "dashboard")))
-        login_successful = True
-        print('Login successful.')
+
+        login_trials = login_trials + 1
+
+        # get the username textbox
+        login_field = driver.find_element(By.ID, "user_email")
+        login_field.clear()
+
+        # enter username
+        if args.user == "":
+            login_field.send_keys(input("Username: "))
+        else:
+            login_field.send_keys(args.user)
+
+        # get the password textbox
+        password_field = driver.find_element(By.ID, "user_password")
+        password_field.clear()
+
+        # enter password
+        if args.password == "":
+            password_field.send_keys(input("Password: "))
+        else:
+            password_field.send_keys(args.password)
+
+        # login
+        password_field.send_keys(Keys.RETURN)
+
+        # check if login was successful
+        try:
+            WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.CLASS_NAME, "dashboard")))
+            login_successful = True
+            print('Login successful.')
+        except:
+            print("Login failed. Please try again.")
+            args.user = ""
+            args.password = ""
+
     except:
-        print("Login failed. Please try again.")
-        args.user = ""
-        args.password = ""
+        if login_trials >= 3:
+            print('Login failed. Trying again...')
+        else:
+            print('Login failed in ' + str(login_trials) + ' trials. Exiting.')
+            exit()
 
+recordings_found_succesful = False
 
-# navigate to the recordings page
-driver.get("https://www.phonostar.de/radio/radioaufnehmen/radiocloud/aufnahmen")
+recordings_found_trials = 0
 
-# get the recordings table
-recordings_table = driver.find_element(By.XPATH, "//div[contains(concat(' ', @class, ' '), ' radiocloud-recordings ')]")
+while not recordings_found_succesful and recordings_found_trials <= 3:
 
-# get the recordings
-recordings = recordings_table.find_elements(By.TAG_NAME, "li")
-
-recs = []
-
-# iterate over the recordings
-for recording in recordings:
-
-    # check for bad lis
-    if recording.size.get('height') == 0 or recording.size.get('width') == 0:
-        continue
-
-    title = recording.find_element(By.CLASS_NAME, "li-heading-main").text
-    date = recording.find_element(By.CLASS_NAME, "description").text
-    duration = recording.find_element(By.CLASS_NAME, "recording-duration-display").text
     try:
-        download_link = recording.find_element(By.CLASS_NAME, "recording-actions").find_element(By.TAG_NAME, "a").get_attribute("href")
-    except:
-        download_link = None
-    delete_button = recording.find_element(By.TAG_NAME, "form").find_element(By.NAME, "button")
 
-    recs.append({
-        "title": title,
-        "date": date,
-        "duration": duration,
-        "download_link": download_link,
-        "delete_button": delete_button
-    })
+        # navigate to the recordings page
+        driver.get("https://www.phonostar.de/radio/radioaufnehmen/radiocloud/aufnahmen")
+
+        # get the recordings table
+        recordings_table = driver.find_element(By.XPATH, "//div[contains(concat(' ', @class, ' '), ' radiocloud-recordings ')]")
+
+        # get the recordings
+        recordings = recordings_table.find_elements(By.TAG_NAME, "li")
+
+        recs = []
+
+        # iterate over the recordings
+        for recording in recordings:
+
+            # check for bad lis
+            if recording.size.get('height') == 0 or recording.size.get('width') == 0:
+                continue
+
+            title = recording.find_element(By.CLASS_NAME, "li-heading-main").text
+            date = recording.find_element(By.CLASS_NAME, "description").text
+            duration = recording.find_element(By.CLASS_NAME, "recording-duration-display").text
+            try:
+                download_link = recording.find_element(By.CLASS_NAME, "recording-actions").find_element(By.TAG_NAME, "a").get_attribute("href")
+            except:
+                download_link = None
+            delete_button = recording.find_element(By.TAG_NAME, "form").find_element(By.NAME, "button")
+
+            recs.append({
+                "title": title,
+                "date": date,
+                "duration": duration,
+                "download_link": download_link,
+                "delete_button": delete_button
+            })
+
+        recordings_found_succesful = True
+
+    except:
+        if recordings_found_trials >= 3:
+            print('Recordings page not found. Trying again...')
+        else:
+            print('Recordings page not found in ' + str(recordings_found_trials) + ' trials. Exiting.')
+            exit()
 
 if args.regex:
     recs = list(filter(lambda x: re.search(args.regex, x.get('title')), recs))
