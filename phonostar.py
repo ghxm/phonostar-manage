@@ -12,6 +12,8 @@ import configparser
 from tqdm import tqdm
 import requests
 import os
+import time
+import re
 
 def exit_handler():
     try:
@@ -171,7 +173,81 @@ def accept_cookie_notice():
         pass
 
 
-accept_cookie_notice()
+def parse_recording(recording):
+    title = recording.find_element(By.CLASS_NAME, "li-heading-main").text
+    date = recording.find_element(By.CLASS_NAME, "description").text
+    duration = recording.find_element(By.CLASS_NAME, "recording-duration-display").text
+    try:
+        download_link = recording.find_element(By.CLASS_NAME, "recording-actions").find_element(By.TAG_NAME,
+                                                                                                "a").get_attribute(
+            "href")
+    except:
+        download_link = None
+    delete_button = recording.find_element(By.TAG_NAME, "form").find_element(By.NAME, "button")
+
+    return({
+        "title": title,
+        "date": date,
+        "duration": duration,
+        "download_link": download_link,
+        "delete_button": delete_button,
+        "series_episode": False
+    })
+
+
+def parse_compact_recording(recording):
+
+    spans = recording.find_elements(By.XPATH, "./span")
+
+    if len(spans) == 4:
+        title = spans[1].text
+        date = re.sub('\s*\|.*', '', spans[2].text)
+
+        try:
+            download_link = spans[3].find_element(By.TAG_NAME, "a").get_attribute("href")
+        except:
+            download_link = None
+
+        delete_button = spans[3].find_element(By.TAG_NAME, "form").find_element(By.NAME, "button")
+
+    else:
+
+        # try to guess the span information
+
+        for span in spans:
+            if span.text == '':
+                continue
+
+            if re.search('^\d{2}\.\d{2}\.\d{4}$', span.text) is not None:
+                date = span.text
+                continue
+
+            if len(span.find_elements(By.TAG_NAME, "a"))> 0:
+                try:
+                    download_link = span.find_element(By.TAG_NAME, "a").get_attribute("href")
+                except:
+                    download_link = None
+
+                delete_button = span.find_element(By.TAG_NAME, "form").find_element(By.NAME, "button")
+                continue
+
+            title = span.text
+
+    return({
+        "title": title,
+        "date": date,
+        "download_link": download_link,
+        "delete_button": delete_button,
+        "series_episode": True
+    })
+
+
+
+
+
+
+
+
 
 login_successful = False
 
@@ -180,6 +256,7 @@ login_trials = 0
 while not login_successful and login_trials <= 3:
 
     try:
+        accept_cookie_notice()
 
         login_trials = login_trials + 1
 
@@ -217,7 +294,7 @@ while not login_successful and login_trials <= 3:
             args.password = ""
 
     except:
-        if login_trials >= 3:
+        if login_trials <= 3:
             print('Login failed. Trying again...')
         else:
             print('Login failed in ' + str(login_trials) + ' trials. Exiting.')
@@ -231,11 +308,24 @@ while not recordings_found_succesful and recordings_found_trials <= 3:
 
     try:
 
+        recordings_found_trials = recordings_found_trials + 1
+
         # navigate to the recordings page
         driver.get("https://www.phonostar.de/radio/radioaufnehmen/radiocloud/aufnahmen")
 
-        # get the recordings table
-        recordings_table = driver.find_element(By.XPATH, "//div[contains(concat(' ', @class, ' '), ' radiocloud-recordings ')]")
+        recordings_table = None
+        recordings_table_trials = 0
+
+        while recordings_table is None and recordings_table_trials <= 3:
+
+            recordings_table_trials = recordings_table_trials + 1
+
+            time.sleep(1)
+
+            accept_cookie_notice()
+            # get the recordings table
+            recordings_table = driver.find_element(By.XPATH, "//div[contains(concat(' ', @class, ' '), ' radiocloud-recordings ')]")
+
 
         # get the recordings
         recordings = recordings_table.find_elements(By.TAG_NAME, "li")
@@ -245,31 +335,32 @@ while not recordings_found_succesful and recordings_found_trials <= 3:
         # iterate over the recordings
         for recording in recordings:
 
-            # check for bad lis
+            # check for bad size
             if recording.size.get('height') == 0 or recording.size.get('width') == 0:
                 continue
 
-            title = recording.find_element(By.CLASS_NAME, "li-heading-main").text
-            date = recording.find_element(By.CLASS_NAME, "description").text
-            duration = recording.find_element(By.CLASS_NAME, "recording-duration-display").text
-            try:
-                download_link = recording.find_element(By.CLASS_NAME, "recording-actions").find_element(By.TAG_NAME, "a").get_attribute("href")
-            except:
-                download_link = None
-            delete_button = recording.find_element(By.TAG_NAME, "form").find_element(By.NAME, "button")
 
-            recs.append({
-                "title": title,
-                "date": date,
-                "duration": duration,
-                "download_link": download_link,
-                "delete_button": delete_button
-            })
+            # check for series container
+            if len(recording.find_elements(By.XPATH, "./ul")) > 0:
+                continue
+
+            # check for compact recording
+            if len(recording.find_elements(By.XPATH, "./span[contains(@class, 'compact-radiocloud-recording')]")) > 0:
+                try:
+                    recs.append(parse_compact_recording(recording))
+                except:
+                    continue
+            else:
+                try:
+                    recs.append(parse_recording(recording))
+                except:
+                    continue
+
 
         recordings_found_succesful = True
 
     except:
-        if recordings_found_trials >= 3:
+        if recordings_found_trials <= 3:
             print('Recordings page not found. Trying again...')
         else:
             print('Recordings page not found in ' + str(recordings_found_trials) + ' trials. Exiting.')
