@@ -83,6 +83,8 @@ assert "phonostar" in driver.title
 
 def delete_recording(recording):
 
+    print ("Deleting recording: " + recording.get('title', '') + " " + recording.get('date', ''))
+
     delete_successful = False
 
     i = 1
@@ -113,6 +115,9 @@ def delete_recording(recording):
 
 
 def download_recording(recording, trials = 2):
+    
+    print('Downloading ' + rec['title'] + '...')
+
     # click on the recording download button
     download_link = recording.get('download_link')
 
@@ -382,7 +387,6 @@ if args.command == 'list':
 if args.command == 'download':
     print('Downloading {} recordings:'.format(len(recs)))
     for rec in recs:
-        print('Downloading ' + rec['title'] + '...')
         try:
             download_recording(rec)
             if args.delete_after_download:
@@ -395,9 +399,7 @@ if args.command == 'delete':
     print('Deleting {} recordings:'.format(len(recs)))
     for rec in recs:
         try:
-            print('- ' + rec['title'] + ' ' + rec['date'])
             delete_recording(rec)
-            print('\r')
         except:
             print('Error deleting ' + rec['title'])
             print('\r')
